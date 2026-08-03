@@ -264,6 +264,8 @@ typedef struct SwapObjectData
 	/* 0x210 */ floatPos cameraPositions[4];
 	/* 0x240 */ s8 unk_21C[0x29C - 0x240];
 	/* 0x29C */ s16 action_type;
+	/* 0x29E */ s8 unk_29E[0x2C0 - 0x29E];
+	/* 0x2C0 */ s8 size; // 0 = Mini Monkey, 1 = normal, 2 = Hunky Chunky
 } SwapObjectData;
 
 typedef struct sandstormData
@@ -561,6 +563,14 @@ extern void func_global_asm_80658CCC(void);
 extern void func_global_asm_80700BF4(void);
 extern void func_global_asm_80611730(void);
 extern void raiseException(s32 type, s32 arg1, s32 arg2, s32 arg3);
+extern void func_global_asm_806C8E58(s16 kong_actor_index); // tagKong
+extern void func_global_asm_806CFF9C(void *player);	// clearTagSlide
+extern void func_global_asm_806F12FC(void *actor); // removeGorillaGone
+extern void func_global_asm_80602B60(s32 song, u8 unk0); // cancelMusic
+extern void playAnimation(void *player, s32 anim_index);
+extern void func_global_asm_80614D90(void *actor); // handleAnimation
+extern u8 func_global_asm_805FF0C8(void); // hasTurnedInEnoughCBs
+extern u8 getLevelIndex(u8 map, u8 lobby_is_isles); // getWorld
 
 // Vanilla data
 extern f32 TransitionSpeed;
@@ -619,8 +629,8 @@ extern u16 PositionFacingAngle;
 extern s8 ChimpyCam;
 extern s8 ScreenRatio;
 extern actorData *CurrentActorPointer;
-extern s8 LoadedActorCount;
-extern loadedActorArr LoadedActorArray[64];
+extern u8 D_global_asm_807FBB34[]; // LoadedActorCount is byte [1] (0x807FBB35)
+extern loadedActorArr D_global_asm_807FB930[64]; // LoadedActorArray
 extern SpawnerMasterInfo SpawnerMasterData;
 extern void *ActorSpawnerArrayPointer;
 extern RGB MenuSkyTopRGB;
@@ -630,8 +640,7 @@ extern s16 actor_count;
 extern s16 ButtonsEnabledBitfield;
 extern s8 JoystickEnabledX;
 extern s8 JoystickEnabledY;
-extern s8 MapState;
-extern Controller ControllerInput;
+extern u16 D_global_asm_807ECD58; // p1HeldButtons (held controller buttons; ControllerInput)
 extern Controller newly_pressed_input_copy;
 extern playerData *gPlayerPointer;
 extern SwapObjectData *character_change_array;
@@ -645,7 +654,7 @@ extern u32 CurrentTimestampMajor; // TODO: libultra type (OSTime)
 extern u32 CurrentTimestampMinor;
 extern ISGFadeoutData ISGFadeoutArray[];
 extern InventoryBase D_global_asm_807FCC40;
-extern s8 ModelTwoTouchCount;
+extern u8 D_global_asm_807FD798; // ModelTwoTouchCount
 extern s16 ModelTwoTouchArray[4];
 extern s8 TransitionProgress;
 extern Controller BackgroundHeldInput;
@@ -834,8 +843,9 @@ extern void setGlobalFlag(s16 flagIndex);
 extern void setTemporaryFlag(s16 flagIndex);
 extern void *findActorWithType(s32 search_actor_type);
 
-extern s32 inBadMap(void);
-extern s32 inBadMovementState(void);
+extern s32 inTransform(void);
+extern s32 canTagAnywhere(void);
+extern s32 getTagAnywhereKong(s32 direction);
 extern void tagAnywhere(void);
 
 void setPermanentFlag(s16 flagIndex)
@@ -866,223 +876,726 @@ void *findActorWithType(s32 search_actor_type)
 	return 0;
 }
 
-/////////////////
-static const u8 bad_maps[] = {
-	1,	 // Funky's Store
-	2,	 // DK Arcade
-	3,	 // K. Rool Barrel: Lanky's Maze
-	5,	 // Cranky's Lab
-	6,	 // Jungle Japes: Minecart
-	9,	 // Jetpac
-	10,	 // Kremling Kosh! (very easy)
-	14,	 // Angry Aztec: Beetle Race // Note: Softlock at the end if enabled?
-	15,	 // Snide's H.Q.
-	18,	 // Teetering Turtle Trouble! (very easy)
-	25,	 // Candy's Music Shop
-	27,	 // Frantic Factory: Car Race
-	31,	 // Gloomy Galleon: K. Rool's Ship // TODO: Test
-	32,	 // Batty Barrel Bandit! (easy)
-	35,	 // K. Rool Barrel: DK's Target Game
-	37,	 // Jungle Japes: Barrel Blast // Note: The barrels don't work as other kongs so not much point enabling it on this map
-	41,	 // Angry Aztec: Barrel Blast
-	42,	 // Troff 'n' Scoff
-	50,	 // K. Rool Barrel: Tiny's Mushroom Game
-	54,	 // Gloomy Galleon: Barrel Blast
-	55,	 // Fungi Forest: Minecart
-	76,	 // DK Rap
-	77,	 // Minecart Mayhem! (easy)
-	78,	 // Busy Barrel Barrage! (easy)
-	79,	 // Busy Barrel Barrage! (normal)
-	80,	 // Main Menu
-	82,	 // Crystal Caves: Beetle Race
-	83,	 // Fungi Forest: Dogadon
-	101, // Krazy Kong Klamour! (easy) // Note: Broken with switch kong
-	102, // Big Bug Bash! (very easy) // Note: Broken with switch kong
-	103, // Searchlight Seek! (very easy) // Note: Broken with switch kong
-	104, // Beaver Bother! (easy) // Note: Broken with switch kong
-	106, // Creepy Castle: Minecart
-	107, // Kong Battle: Battle Arena // TODO: Would be really cool to get multiplayer working, currently just voids you out when activated
-	109, // Kong Battle: Arena 1 // TODO: Would be really cool to get multiplayer working, currently just voids you out when activated
-	110, // Frantic Factory: Barrel Blast
-	111, // Gloomy Galleon: Puftoss
-	115, // Kremling Kosh! (easy)
-	116, // Kremling Kosh! (normal)
-	117, // Kremling Kosh! (hard)
-	118, // Teetering Turtle Trouble! (easy)
-	119, // Teetering Turtle Trouble! (normal)
-	120, // Teetering Turtle Trouble! (hard)
-	121, // Batty Barrel Bandit! (easy)
-	122, // Batty Barrel Bandit! (normal)
-	123, // Batty Barrel Bandit! (hard)
-	131, // Busy Barrel Barrage! (hard)
-	136, // Beaver Bother! (normal)
-	137, // Beaver Bother! (hard)
-	138, // Searchlight Seek! (easy)
-	139, // Searchlight Seek! (normal)
-	140, // Searchlight Seek! (hard)
-	141, // Krazy Kong Klamour! (normal)
-	142, // Krazy Kong Klamour! (hard)
-	143, // Krazy Kong Klamour! (insane)
-	144, // Peril Path Panic! (very easy) // Note: Broken with switch kong
-	145, // Peril Path Panic! (easy)
-	146, // Peril Path Panic! (normal)
-	147, // Peril Path Panic! (hard)
-	148, // Big Bug Bash! (easy)
-	149, // Big Bug Bash! (normal)
-	150, // Big Bug Bash! (hard)
-	152, // Hideout Helm (Intro Story) // Note: Handled by cutscene check
-	153, // DK Isles (DK Theatre) // Note: Handled by cutscene check
-	165, // K. Rool Barrel: Diddy's Kremling Game
-	172, // Rock (Intro Story) // Note: Handled by cutscene check
-	185, // Enguarde Arena // Note: Handled by character check
-	186, // Creepy Castle: Car Race
-	187, // Crystal Caves: Barrel Blast
-	188, // Creepy Castle: Barrel Blast
-	189, // Fungi Forest: Barrel Blast
-	190, // Kong Battle: Arena 2 // TODO: Would be really cool to get multiplayer working, currently just voids you out when activated
-	191, // Rambi Arena // Note: Handled by character check
-	192, // Kong Battle: Arena 3 // TODO: Would be really cool to get multiplayer working, currently just voids you out when activated
-	198, // Training Grounds (End Sequence) // Note: Handled by cutscene check
-	199, // Creepy Castle: King Kut Out // Note: Doesn't break the kong order but since this fight is explicitly about tagging we might as well disable
-	201, // K. Rool Barrel: Diddy's Rocketbarrel Game
-	202, // K. Rool Barrel: Lanky's Shooting Game
-	203, // K. Rool Fight: DK Phase // Note: Enabling here breaks the fight and may cause softlocks
-	204, // K. Rool Fight: Diddy Phase // Note: Enabling here breaks the fight and may cause softlocks
-	205, // K. Rool Fight: Lanky Phase // Note: Enabling here breaks the fight and may cause softlocks
-	206, // K. Rool Fight: Tiny Phase // Note: Enabling here breaks the fight and may cause softlocks
-	207, // K. Rool Fight: Chunky Phase // Note: Enabling here breaks the fight and may cause softlocks
-	208, // Bloopers Ending // Note: Handled by cutscene check
-	209, // K. Rool Barrel: Chunky's Hidden Kremling Game
-	210, // K. Rool Barrel: Tiny's Pony Tail Twirl Game
-	211, // K. Rool Barrel: Chunky's Shooting Game
-	212, // K. Rool Barrel: DK's Rambi Game
-	213, // K. Lumsy Ending // Note: Handled by cutscene check
-	214, // K. Rool's Shoe
-	215, // K. Rool's Arena // Note: Handled by cutscene check?
+typedef struct map_bitfield
+{
+	unsigned char test_map : 1;
+	unsigned char funkys_store : 1;
+	unsigned char dk_arcade : 1;
+	unsigned char k_rool_barrel_lankys_maze : 1;
+	unsigned char jungle_japes_mountain : 1;
+	unsigned char crankys_lab : 1;
+	unsigned char jungle_japes_minecart : 1;
+	unsigned char jungle_japes : 1;
+	unsigned char jungle_japes_army_dillo : 1;
+	unsigned char jetpac : 1;
+	unsigned char kremling_kosh_very_easy : 1;
+	unsigned char stealthy_snoop_normal_no_logo : 1;
+	unsigned char jungle_japes_shell : 1;
+	unsigned char jungle_japes_lankys_cave : 1;
+	unsigned char angry_aztec_beetle_race : 1;
+	unsigned char snides_hq : 1;
+	unsigned char angry_aztec_tinys_temple : 1;
+	unsigned char hideout_helm : 1;
+	unsigned char teetering_turtle_trouble_very_easy : 1;
+	unsigned char angry_aztec_five_door_temple_dk : 1;
+	unsigned char angry_aztec_llama_temple : 1;
+	unsigned char angry_aztec_five_door_temple_diddy : 1;
+	unsigned char angry_aztec_five_door_temple_tiny : 1;
+	unsigned char angry_aztec_five_door_temple_lanky : 1;
+	unsigned char angry_aztec_five_door_temple_chunky : 1;
+	unsigned char candys_music_shop : 1;
+	unsigned char frantic_factory : 1;
+	unsigned char frantic_factory_car_race : 1;
+	unsigned char hideout_helm_level_intros_game_over : 1;
+	unsigned char frantic_factory_power_shed : 1;
+	unsigned char gloomy_galleon : 1;
+	unsigned char gloomy_galleon_k_rools_ship : 1;
+	unsigned char batty_barrel_bandit_very_easy : 1;
+	unsigned char jungle_japes_chunkys_cave : 1;
+	unsigned char dk_isles_overworld : 1;
+	unsigned char k_rool_barrel_dks_target_game : 1;
+	unsigned char frantic_factory_crusher_room : 1;
+	unsigned char jungle_japes_barrel_blast : 1;
+	unsigned char angry_aztec : 1;
+	unsigned char gloomy_galleon_seal_race : 1;
+	unsigned char nintendo_logo : 1;
+	unsigned char angry_aztec_barrel_blast : 1;
+	unsigned char troff_n_scoff : 1;
+	unsigned char gloomy_galleon_shipwreck_diddy_lanky_chunky : 1;
+	unsigned char gloomy_galleon_treasure_chest : 1;
+	unsigned char gloomy_galleon_mermaid : 1;
+	unsigned char gloomy_galleon_shipwreck_dk_tiny : 1;
+	unsigned char gloomy_galleon_shipwreck_lanky_tiny : 1;
+	unsigned char fungi_forest : 1;
+	unsigned char gloomy_galleon_lighthouse : 1;
+	unsigned char k_rool_barrel_tinys_mushroom_game : 1;
+	unsigned char gloomy_galleon_mechanical_fish : 1;
+	unsigned char fungi_forest_ant_hill : 1;
+	unsigned char battle_arena_beaver_brawl : 1;
+	unsigned char gloomy_galleon_barrel_blast : 1;
+	unsigned char fungi_forest_minecart : 1;
+	unsigned char fungi_forest_diddys_barn : 1;
+	unsigned char fungi_forest_diddys_attic : 1;
+	unsigned char fungi_forest_lankys_attic : 1;
+	unsigned char fungi_forest_dks_barn : 1;
+	unsigned char fungi_forest_spider : 1;
+	unsigned char fungi_forest_front_part_of_mill : 1;
+	unsigned char fungi_forest_rear_part_of_mill : 1;
+	unsigned char fungi_forest_mushroom_puzzle : 1;
+	unsigned char fungi_forest_giant_mushroom : 1;
+	unsigned char stealthy_snoop_normal : 1;
+	unsigned char mad_maze_maul_hard : 1;
+	unsigned char stash_snatch_normal : 1;
+	unsigned char mad_maze_maul_easy : 1;
+	unsigned char mad_maze_maul_normal : 1;
+	unsigned char fungi_forest_mushroom_leap : 1;
+	unsigned char fungi_forest_shooting_game : 1;
+	unsigned char crystal_caves : 1;
+	unsigned char battle_arena_kritter_karnage : 1;
+	unsigned char stash_snatch_easy : 1;
+	unsigned char stash_snatch_hard : 1;
+	unsigned char dk_rap : 1;
+	unsigned char minecart_mayhem_easy : 1;
+	unsigned char busy_barrel_barrage_easy : 1;
+	unsigned char busy_barrel_barrage_normal : 1;
+	unsigned char main_menu : 1;
+	unsigned char title_screen_not_for_resale_version : 1;
+	unsigned char crystal_caves_beetle_race : 1;
+	unsigned char fungi_forest_dogadon : 1;
+	unsigned char crystal_caves_igloo_tiny : 1;
+	unsigned char crystal_caves_igloo_lanky : 1;
+	unsigned char crystal_caves_igloo_dk : 1;
+	unsigned char creepy_castle : 1;
+	unsigned char creepy_castle_ballroom : 1;
+	unsigned char crystal_caves_rotating_room : 1;
+	unsigned char crystal_caves_shack_chunky : 1;
+	unsigned char crystal_caves_shack_dk : 1;
+	unsigned char crystal_caves_shack_diddy_middle_part : 1;
+	unsigned char crystal_caves_shack_tiny : 1;
+	unsigned char crystal_caves_lankys_hut : 1;
+	unsigned char crystal_caves_igloo_chunky : 1;
+	unsigned char splish_splash_salvage_normal : 1;
+	unsigned char k_lumsy : 1;
+	unsigned char crystal_caves_ice_castle : 1;
+	unsigned char speedy_swing_sortie_easy : 1;
+	unsigned char crystal_caves_igloo_diddy : 1;
+	unsigned char krazy_kong_klamour_easy : 1;
+	unsigned char big_bug_bash_very_easy : 1;
+	unsigned char searchlight_seek_very_easy : 1;
+	unsigned char beaver_bother_easy : 1;
+	unsigned char creepy_castle_tower : 1;
+	unsigned char creepy_castle_minecart : 1;
+	unsigned char kong_battle_battle_arena : 1;
+	unsigned char creepy_castle_crypt_lanky_tiny : 1;
+	unsigned char kong_battle_arena_1 : 1;
+	unsigned char frantic_factory_barrel_blast : 1;
+	unsigned char gloomy_galleon_pufftoss : 1;
+	unsigned char creepy_castle_crypt_dk_diddy_chunky : 1;
+	unsigned char creepy_castle_museum : 1;
+	unsigned char creepy_castle_library : 1;
+	unsigned char kremling_kosh_easy : 1;
+	unsigned char kremling_kosh_normal : 1;
+	unsigned char kremling_kosh_hard : 1;
+	unsigned char teetering_turtle_trouble_easy : 1;
+	unsigned char teetering_turtle_trouble_normal : 1;
+	unsigned char teetering_turtle_trouble_hard : 1;
+	unsigned char batty_barrel_bandit_easy : 1;
+	unsigned char batty_barrel_bandit_normal : 1;
+	unsigned char batty_barrel_bandit_hard : 1;
+	unsigned char mad_maze_maul_insane : 1;
+	unsigned char stash_snatch_insane : 1;
+	unsigned char stealthy_snoop_very_easy : 1;
+	unsigned char stealthy_snoop_easy : 1;
+	unsigned char stealthy_snoop_hard : 1;
+	unsigned char minecart_mayhem_normal : 1;
+	unsigned char minecart_mayhem_hard : 1;
+	unsigned char busy_barrel_barrage_hard : 1;
+	unsigned char splish_splash_salvage_hard : 1;
+	unsigned char splish_splash_salvage_easy : 1;
+	unsigned char speedy_swing_sortie_normal : 1;
+	unsigned char speedy_swing_sortie_hard : 1;
+	unsigned char beaver_bother_normal : 1;
+	unsigned char beaver_bother_hard : 1;
+	unsigned char searchlight_seek_easy : 1;
+	unsigned char searchlight_seek_normal : 1;
+	unsigned char searchlight_seek_hard : 1;
+	unsigned char krazy_kong_klamour_normal : 1;
+	unsigned char krazy_kong_klamour_hard : 1;
+	unsigned char krazy_kong_klamour_insane : 1;
+	unsigned char peril_path_panic_very_easy : 1;
+	unsigned char peril_path_panic_easy : 1;
+	unsigned char peril_path_panic_normal : 1;
+	unsigned char peril_path_panic_hard : 1;
+	unsigned char big_bug_bash_easy : 1;
+	unsigned char big_bug_bash_normal : 1;
+	unsigned char big_bug_bash_hard : 1;
+	unsigned char creepy_castle_dungeon : 1;
+	unsigned char hideout_helm_intro_story : 1;
+	unsigned char dk_isles_dk_theatre : 1;
+	unsigned char frantic_factory_mad_jack : 1;
+	unsigned char battle_arena_arena_ambush : 1;
+	unsigned char battle_arena_more_kritter_karnage : 1;
+	unsigned char battle_arena_forest_fracas : 1;
+	unsigned char battle_arena_bish_bash_brawl : 1;
+	unsigned char battle_arena_kamikaze_kremlings : 1;
+	unsigned char battle_arena_plinth_panic : 1;
+	unsigned char battle_arena_pinnacle_palaver : 1;
+	unsigned char battle_arena_shockwave_showdown : 1;
+	unsigned char creepy_castle_basement : 1;
+	unsigned char creepy_castle_tree : 1;
+	unsigned char k_rool_barrel_diddys_kremling_game : 1;
+	unsigned char creepy_castle_chunkys_toolshed : 1;
+	unsigned char creepy_castle_trash_can : 1;
+	unsigned char creepy_castle_greenhouse : 1;
+	unsigned char jungle_japes_lobby : 1;
+	unsigned char hideout_helm_lobby : 1;
+	unsigned char dks_house : 1;
+	unsigned char rock_intro_story : 1;
+	unsigned char angry_aztec_lobby : 1;
+	unsigned char gloomy_galleon_lobby : 1;
+	unsigned char frantic_factory_lobby : 1;
+	unsigned char training_grounds : 1;
+	unsigned char dive_barrel : 1;
+	unsigned char fungi_forest_lobby : 1;
+	unsigned char gloomy_galleon_submarine : 1;
+	unsigned char orange_barrel : 1;
+	unsigned char barrel_barrel : 1;
+	unsigned char vine_barrel : 1;
+	unsigned char creepy_castle_crypt : 1;
+	unsigned char enguarde_arena : 1;
+	unsigned char creepy_castle_car_race : 1;
+	unsigned char crystal_caves_barrel_blast : 1;
+	unsigned char creepy_castle_barrel_blast : 1;
+	unsigned char fungi_forest_barrel_blast : 1;
+	unsigned char fairy_island : 1;
+	unsigned char kong_battle_arena_2 : 1;
+	unsigned char rambi_arena : 1;
+	unsigned char kong_battle_arena_3 : 1;
+	unsigned char creepy_castle_lobby : 1;
+	unsigned char crystal_caves_lobby : 1;
+	unsigned char dk_isles_snides_room : 1;
+	unsigned char crystal_caves_army_dillo : 1;
+	unsigned char angry_aztec_dogadon : 1;
+	unsigned char training_grounds_end_sequence : 1;
+	unsigned char creepy_castle_king_kut_out : 1;
+	unsigned char crystal_caves_shack_diddy_upper_part : 1;
+	unsigned char k_rool_barrel_diddys_rocketbarrel_game : 1;
+	unsigned char k_rool_barrel_lankys_shooting_game : 1;
+	unsigned char k_rool_fight_dk_phase : 1;
+	unsigned char k_rool_fight_diddy_phase : 1;
+	unsigned char k_rool_fight_lanky_phase : 1;
+	unsigned char k_rool_fight_tiny_phase : 1;
+	unsigned char k_rool_fight_chunky_phase : 1;
+	unsigned char bloopers_ending : 1;
+	unsigned char k_rool_barrel_chunkys_hidden_kremling_game : 1;
+	unsigned char k_rool_barrel_tinys_pony_tail_twirl_game : 1;
+	unsigned char k_rool_barrel_chunkys_shooting_game : 1;
+	unsigned char k_rool_barrel_dks_rambi_game : 1;
+	unsigned char k_lumsy_ending : 1;
+	unsigned char k_rools_shoe : 1;
+	unsigned char k_rools_arena : 1;
+} map_bitfield;
+
+typedef struct movement_bitfield
+{
+	unsigned char null_state : 1;
+	unsigned char idle_enemy : 1;
+	unsigned char first_person_camera : 1;
+	unsigned char first_person_camera_water : 1;
+	unsigned char fairy_camera : 1;
+	unsigned char fairy_camera_water : 1;
+	unsigned char locked_bonus_barrel_0x6 : 1;
+	unsigned char minecart_idle : 1;
+	unsigned char minecart_crouch : 1;
+	unsigned char minecart_jump : 1;
+	unsigned char minecart_left : 1;
+	unsigned char minecart_right : 1;
+	unsigned char idle : 1;
+	unsigned char walking : 1;
+	unsigned char skidding : 1;
+	unsigned char sliding_beetle_race : 1;
+	unsigned char sliding_beetle_race_left : 1;
+	unsigned char sliding_beetle_race_right : 1;
+	unsigned char sliding_beetle_race_forward : 1;
+	unsigned char sliding_beetle_race_back : 1;
+	unsigned char jumping_beetle_race : 1;
+	unsigned char slipping : 1;
+	unsigned char slipping_helm_slope : 1;
+	unsigned char jumping : 1;
+	unsigned char baboon_blast_pad : 1;
+	unsigned char bouncing_mushroom : 1;
+	unsigned char double_jump : 1;
+	unsigned char simian_spring : 1;
+	unsigned char simian_slam : 1;
+	unsigned char long_jumping : 1;
+	unsigned char falling : 1;
+	unsigned char falling_gun : 1;
+	unsigned char falling_or_splat : 1;
+	unsigned char falling_beetle_race : 1;
+	unsigned char pony_tail_twirl : 1;
+	unsigned char attacking_enemy : 1;
+	unsigned char primate_punch : 1;
+	unsigned char attacking_enemy_0x25 : 1;
+	unsigned char ground_attack : 1;
+	unsigned char attacking_enemy_0x27 : 1;
+	unsigned char ground_attack_final : 1;
+	unsigned char moving_ground_attack : 1;
+	unsigned char aerial_attack : 1;
+	unsigned char rolling : 1;
+	unsigned char throwing_orange : 1;
+	unsigned char shockwave : 1;
+	unsigned char chimpy_charge : 1;
+	unsigned char charging_rambi : 1;
+	unsigned char bouncing : 1;
+	unsigned char damaged : 1;
+	unsigned char stunlocked_kasplat : 1;
+	unsigned char damaged_mad_jack : 1;
+	unsigned char unknown_0x34 : 1;
+	unsigned char damaged_klump_knockback : 1;
+	unsigned char death : 1;
+	unsigned char damaged_underwater : 1;
+	unsigned char damaged_vehicle : 1;
+	unsigned char shrinking : 1;
+	unsigned char unknown_0x3a : 1;
+	unsigned char death_dogadon : 1;
+	unsigned char crouching : 1;
+	unsigned char uncrouching : 1;
+	unsigned char backflip : 1;
+	unsigned char entering_orangstand : 1;
+	unsigned char orangstand : 1;
+	unsigned char jumping_orangstand : 1;
+	unsigned char barrel_tag_barrel : 1;
+	unsigned char barrel_underwater : 1;
+	unsigned char baboon_blast_shot : 1;
+	unsigned char cannon_shot : 1;
+	unsigned char pushing_object : 1;
+	unsigned char picking_up_object : 1;
+	unsigned char idle_carrying_object : 1;
+	unsigned char walking_carrying_object : 1;
+	unsigned char dropping_object : 1;
+	unsigned char throwing_object : 1;
+	unsigned char jumping_carrying_object : 1;
+	unsigned char throwing_object_air : 1;
+	unsigned char surface_swimming : 1;
+	unsigned char underwater : 1;
+	unsigned char leaving_water : 1;
+	unsigned char jumping_water : 1;
+	unsigned char bananaporter : 1;
+	unsigned char monkeyport : 1;
+	unsigned char bananaport_multiplayer : 1;
+	unsigned char unknown_0x55 : 1;
+	unsigned char locked_funky_and_candy : 1;
+	unsigned char swinging_on_vine : 1;
+	unsigned char leaving_vine : 1;
+	unsigned char climbing_tree : 1;
+	unsigned char leaving_tree : 1;
+	unsigned char grabbed_ledge : 1;
+	unsigned char pulling_up_on_ledge : 1;
+	unsigned char idle_gun : 1;
+	unsigned char walking_gun : 1;
+	unsigned char putting_away_gun : 1;
+	unsigned char pulling_out_gun : 1;
+	unsigned char jumping_gun : 1;
+	unsigned char aiming_gun : 1;
+	unsigned char rocketbarrel : 1;
+	unsigned char taking_photo : 1;
+	unsigned char taking_photo_underwater : 1;
+	unsigned char damaged_tnt_barrels : 1;
+	unsigned char instrument : 1;
+	unsigned char unknown_0x68 : 1;
+	unsigned char car_race : 1;
+	unsigned char learning_gun : 1;
+	unsigned char locked_bonus_barrel_0x6b : 1;
+	unsigned char feeding_tns : 1;
+	unsigned char boat : 1;
+	unsigned char baboon_balloon : 1;
+	unsigned char updraft : 1;
+	unsigned char gb_dance : 1;
+	unsigned char key_dance : 1;
+	unsigned char crown_dance : 1;
+	unsigned char loss_dance : 1;
+	unsigned char victory_dance : 1;
+	unsigned char vehicle_castle_car_race : 1;
+	unsigned char entering_battle_crown : 1;
+	unsigned char locked_cutscenes : 1;
+	unsigned char gorilla_grab : 1;
+	unsigned char learning_move : 1;
+	unsigned char locked_car_race_loss : 1;
+	unsigned char locked_beetle_race_loss : 1;
+	unsigned char trapped : 1;
+	unsigned char klaptrap_kong : 1;
+	unsigned char surface_swimming_enguarde : 1;
+	unsigned char underwater_enguarde : 1;
+	unsigned char attacking_enguarde_surface : 1;
+	unsigned char attacking_enguarde : 1;
+	unsigned char leaving_water_enguarde : 1;
+	unsigned char fairy_refill : 1;
+	unsigned char unknown_0x84 : 1;
+	unsigned char main_menu : 1;
+	unsigned char entering_main_menu : 1;
+	unsigned char entering_portal : 1;
+	unsigned char exiting_portal : 1;
+} movement_bitfield;
+
+static const map_bitfield banned_map_btf = {
+	// Whether a tag is banned on a given map. Each property is a boolean.
+	.test_map = 0,
+	.funkys_store = 1,					 // Reason: Shop
+	.dk_arcade = 1,						 // Reason: Locked Movement
+	.k_rool_barrel_lankys_maze = 0,
+	.jungle_japes_mountain = 0,
+	.crankys_lab = 1,					 // Reason: Shop
+	.jungle_japes_minecart = 1,			 // Reason: Locked Movement
+	.jungle_japes = 0,
+	.jungle_japes_army_dillo = 1,		 // Reason: Boss Map
+	.jetpac = 1,						 // Reason: Locked Movement
+	.kremling_kosh_very_easy = 1,		 // Reason: Locked Movement
+	.stealthy_snoop_normal_no_logo = 0,
+	.jungle_japes_shell = 0,
+	.jungle_japes_lankys_cave = 0,
+	.angry_aztec_beetle_race = 0,		 // Reason: Locked Movement
+	.snides_hq = 1,						 // Reason: Shop
+	.angry_aztec_tinys_temple = 0,
+	.hideout_helm = 0,
+	.teetering_turtle_trouble_very_easy = 1, // Reason: Locked Movement
+	.angry_aztec_five_door_temple_dk = 0,
+	.angry_aztec_llama_temple = 0,
+	.angry_aztec_five_door_temple_diddy = 0,
+	.angry_aztec_five_door_temple_tiny = 0,
+	.angry_aztec_five_door_temple_lanky = 0,
+	.angry_aztec_five_door_temple_chunky = 0,
+	.candys_music_shop = 1,				 // Reason: Shop
+	.frantic_factory = 0,
+	.frantic_factory_car_race = 1,		 // Reason: Locked Movement
+	.hideout_helm_level_intros_game_over = 1, // Reason: Cutscene Map
+	.frantic_factory_power_shed = 0,
+	.gloomy_galleon = 0,
+	.gloomy_galleon_k_rools_ship = 0,
+	.batty_barrel_bandit_very_easy = 1,	 // Reason: Locked Movement
+	.jungle_japes_chunkys_cave = 0,
+	.dk_isles_overworld = 0,
+	.k_rool_barrel_dks_target_game = 0,
+	.frantic_factory_crusher_room = 0,
+	.jungle_japes_barrel_blast = 1,		 // Reason: BBlast Course
+	.angry_aztec = 0,
+	.gloomy_galleon_seal_race = 1,		 // Reason: Locked Movement
+	.nintendo_logo = 1,					 // Reason: Cutscene Map
+	.angry_aztec_barrel_blast = 1,		 // Reason: BBlast Course
+	.troff_n_scoff = 0,
+	.gloomy_galleon_shipwreck_diddy_lanky_chunky = 0,
+	.gloomy_galleon_treasure_chest = 0,
+	.gloomy_galleon_mermaid = 0,
+	.gloomy_galleon_shipwreck_dk_tiny = 0,
+	.gloomy_galleon_shipwreck_lanky_tiny = 0,
+	.fungi_forest = 0,
+	.gloomy_galleon_lighthouse = 0,
+	.k_rool_barrel_tinys_mushroom_game = 0,
+	.gloomy_galleon_mechanical_fish = 0,
+	.fungi_forest_ant_hill = 0,
+	.battle_arena_beaver_brawl = 0,
+	.gloomy_galleon_barrel_blast = 1,	 // Reason: BBlast Course
+	.fungi_forest_minecart = 1,			 // Reason: Locked Movement
+	.fungi_forest_diddys_barn = 0,
+	.fungi_forest_diddys_attic = 0,
+	.fungi_forest_lankys_attic = 0,
+	.fungi_forest_dks_barn = 0,
+	.fungi_forest_spider = 0,
+	.fungi_forest_front_part_of_mill = 0,
+	.fungi_forest_rear_part_of_mill = 0,
+	.fungi_forest_mushroom_puzzle = 0,
+	.fungi_forest_giant_mushroom = 0,
+	.stealthy_snoop_normal = 0,
+	.mad_maze_maul_hard = 0,
+	.stash_snatch_normal = 0,
+	.mad_maze_maul_easy = 0,
+	.mad_maze_maul_normal = 0,
+	.fungi_forest_mushroom_leap = 0,
+	.fungi_forest_shooting_game = 0,
+	.crystal_caves = 0,
+	.battle_arena_kritter_karnage = 0,
+	.stash_snatch_easy = 0,
+	.stash_snatch_hard = 0,
+	.dk_rap = 1,						 // Reason: Cutscene Map
+	.minecart_mayhem_easy = 1,			 // Reason: Locked Movement
+	.busy_barrel_barrage_easy = 1,		 // Reason: Locked Movement
+	.busy_barrel_barrage_normal = 1,	 // Reason: Locked Movement
+	.main_menu = 1,						 // Reason: Locked Movement
+	.title_screen_not_for_resale_version = 1, // Reason: Cutscene Map
+	.crystal_caves_beetle_race = 0,		 // Reason: Locked Movement
+	.fungi_forest_dogadon = 1,			 // Reason: Boss Map
+	.crystal_caves_igloo_tiny = 0,
+	.crystal_caves_igloo_lanky = 0,
+	.crystal_caves_igloo_dk = 0,
+	.creepy_castle = 0,
+	.creepy_castle_ballroom = 0,
+	.crystal_caves_rotating_room = 0,
+	.crystal_caves_shack_chunky = 0,
+	.crystal_caves_shack_dk = 0,
+	.crystal_caves_shack_diddy_middle_part = 0,
+	.crystal_caves_shack_tiny = 0,
+	.crystal_caves_lankys_hut = 0,
+	.crystal_caves_igloo_chunky = 0,
+	.splish_splash_salvage_normal = 0,
+	.k_lumsy = 0,
+	.crystal_caves_ice_castle = 0,
+	.speedy_swing_sortie_easy = 0,
+	.crystal_caves_igloo_diddy = 0,
+	.krazy_kong_klamour_easy = 1,		 // Reason: Locked Movement
+	.big_bug_bash_very_easy = 1,		 // Reason: Locked Movement
+	.searchlight_seek_very_easy = 1,	 // Reason: Locked Movement
+	.beaver_bother_easy = 1,			 // Reason: Locked Movement
+	.creepy_castle_tower = 0,
+	.creepy_castle_minecart = 0,
+	.kong_battle_battle_arena = 1,		 // Reason: Multiplayer Map
+	.creepy_castle_crypt_lanky_tiny = 0,
+	.kong_battle_arena_1 = 1,			 // Reason: Multiplayer Map
+	.frantic_factory_barrel_blast = 1,	 // Reason: BBlast Course
+	.gloomy_galleon_pufftoss = 1,		 // Reason: Boss Map
+	.creepy_castle_crypt_dk_diddy_chunky = 0,
+	.creepy_castle_museum = 0,
+	.creepy_castle_library = 0,
+	.kremling_kosh_easy = 1,			 // Reason: Locked Movement
+	.kremling_kosh_normal = 1,			 // Reason: Locked Movement
+	.kremling_kosh_hard = 1,			 // Reason: Locked Movement
+	.teetering_turtle_trouble_easy = 1,	 // Reason: Locked Movement
+	.teetering_turtle_trouble_normal = 1, // Reason: Locked Movement
+	.teetering_turtle_trouble_hard = 1,	 // Reason: Locked Movement
+	.batty_barrel_bandit_easy = 1,		 // Reason: Locked Movement
+	.batty_barrel_bandit_normal = 1,	 // Reason: Locked Movement
+	.batty_barrel_bandit_hard = 1,		 // Reason: Locked Movement
+	.mad_maze_maul_insane = 0,
+	.stash_snatch_insane = 0,
+	.stealthy_snoop_very_easy = 0,
+	.stealthy_snoop_easy = 0,
+	.stealthy_snoop_hard = 0,
+	.minecart_mayhem_normal = 1,		 // Reason: Locked Movement
+	.minecart_mayhem_hard = 1,			 // Reason: Locked Movement
+	.busy_barrel_barrage_hard = 1,		 // Reason: Locked Movement
+	.splish_splash_salvage_hard = 0,
+	.splish_splash_salvage_easy = 0,
+	.speedy_swing_sortie_normal = 0,
+	.speedy_swing_sortie_hard = 0,
+	.beaver_bother_normal = 1,			 // Reason: Locked Movement
+	.beaver_bother_hard = 1,			 // Reason: Locked Movement
+	.searchlight_seek_easy = 1,			 // Reason: Locked Movement
+	.searchlight_seek_normal = 1,		 // Reason: Locked Movement
+	.searchlight_seek_hard = 1,			 // Reason: Locked Movement
+	.krazy_kong_klamour_normal = 1,		 // Reason: Locked Movement
+	.krazy_kong_klamour_hard = 1,		 // Reason: Locked Movement
+	.krazy_kong_klamour_insane = 1,		 // Reason: Locked Movement
+	.peril_path_panic_very_easy = 1,	 // Reason: Locked Movement
+	.peril_path_panic_easy = 1,			 // Reason: Locked Movement
+	.peril_path_panic_normal = 1,		 // Reason: Locked Movement
+	.peril_path_panic_hard = 1,			 // Reason: Locked Movement
+	.big_bug_bash_easy = 1,				 // Reason: Locked Movement
+	.big_bug_bash_normal = 1,			 // Reason: Locked Movement
+	.big_bug_bash_hard = 1,				 // Reason: Locked Movement
+	.creepy_castle_dungeon = 0,
+	.hideout_helm_intro_story = 1,		 // Reason: Cutscene Map
+	.dk_isles_dk_theatre = 1,			 // Reason: Cutscene Map
+	.frantic_factory_mad_jack = 1,		 // Reason: Boss Map
+	.battle_arena_arena_ambush = 0,
+	.battle_arena_more_kritter_karnage = 0,
+	.battle_arena_forest_fracas = 0,
+	.battle_arena_bish_bash_brawl = 0,
+	.battle_arena_kamikaze_kremlings = 0,
+	.battle_arena_plinth_panic = 0,
+	.battle_arena_pinnacle_palaver = 0,
+	.battle_arena_shockwave_showdown = 0,
+	.creepy_castle_basement = 0,
+	.creepy_castle_tree = 0,
+	.k_rool_barrel_diddys_kremling_game = 0,
+	.creepy_castle_chunkys_toolshed = 0,
+	.creepy_castle_trash_can = 0,
+	.creepy_castle_greenhouse = 0,
+	.jungle_japes_lobby = 0,
+	.hideout_helm_lobby = 0,
+	.dks_house = 0,
+	.rock_intro_story = 1,				 // Reason: Cutscene Map
+	.angry_aztec_lobby = 0,
+	.gloomy_galleon_lobby = 0,
+	.frantic_factory_lobby = 0,
+	.training_grounds = 0,
+	.dive_barrel = 0,
+	.fungi_forest_lobby = 0,
+	.gloomy_galleon_submarine = 0,
+	.orange_barrel = 0,
+	.barrel_barrel = 0,
+	.vine_barrel = 0,
+	.creepy_castle_crypt = 0,
+	.enguarde_arena = 1,				 // Reason: Enguarde-Only Room
+	.creepy_castle_car_race = 0,
+	.crystal_caves_barrel_blast = 1,	 // Reason: BBlast Course
+	.creepy_castle_barrel_blast = 1,	 // Reason: BBlast Course
+	.fungi_forest_barrel_blast = 1,		 // Reason: BBlast Course
+	.fairy_island = 0,
+	.kong_battle_arena_2 = 1,			 // Reason: Multiplayer Map
+	.rambi_arena = 1,					 // Reason: Rambi-Only Room
+	.kong_battle_arena_3 = 1,			 // Reason: Multiplayer Map
+	.creepy_castle_lobby = 0,
+	.crystal_caves_lobby = 0,
+	.dk_isles_snides_room = 0,
+	.crystal_caves_army_dillo = 1,		 // Reason: Boss Map
+	.angry_aztec_dogadon = 1,			 // Reason: Boss Map
+	.training_grounds_end_sequence = 1,	 // Reason: Cutscene Map
+	.creepy_castle_king_kut_out = 1,	 // Reason: Boss Map
+	.crystal_caves_shack_diddy_upper_part = 0,
+	.k_rool_barrel_diddys_rocketbarrel_game = 0,
+	.k_rool_barrel_lankys_shooting_game = 0,
+	.k_rool_fight_dk_phase = 1,			 // Reason: Boss Map
+	.k_rool_fight_diddy_phase = 1,		 // Reason: Boss Map
+	.k_rool_fight_lanky_phase = 1,		 // Reason: Boss Map
+	.k_rool_fight_tiny_phase = 1,		 // Reason: Boss Map
+	.k_rool_fight_chunky_phase = 1,		 // Reason: Boss Map
+	.bloopers_ending = 1,				 // Reason: Cutscene Map
+	.k_rool_barrel_chunkys_hidden_kremling_game = 0,
+	.k_rool_barrel_tinys_pony_tail_twirl_game = 0,
+	.k_rool_barrel_chunkys_shooting_game = 0,
+	.k_rool_barrel_dks_rambi_game = 1,	 // Reason: Rambi-Only Room
+	.k_lumsy_ending = 1,				 // Reason: Cutscene Map
+	.k_rools_shoe = 1,					 // Reason: Boss Map
+	.k_rools_arena = 1,					 // Reason: Cutscene Map
 };
 
-static const u8 bad_movement_states[] = {
-	// 0x02, // First Person Camera
-	// 0x03, // First Person Camera (Water)
-	0x04, // Fairy Camera
-	0x05, // Fairy Camera (Water)
-	0x06, // Locked (Bonus Barrel)
-	0x15, // Slipping
-	0x16, // Slipping
-	0x18, // Baboon Blast Pad
-	0x1B, // Simian Spring
-	// 0x1C, // Simian Slam // Note: As far as I know this doesn't break anything, so we'll save the CPU cycles
-	0x20, // Falling/Splat, // Note: Prevents quick recovery from fall damage, and I guess maybe switching to avoid fall damage?
-	0x2D, // Shockwave
-	0x2E, // Chimpy Charge
-	0x31, // Damaged
-	0x32, // Stunlocked
-	0x33, // Damaged
-	0x35, // Damaged
-	0x36, // Death
-	0x37, // Damaged (Underwater)
-	0x38, // Damaged
-	0x39, // Shrinking
-	0x42, // Barrel
-	0x43, // Barrel (Underwater)
-	0x44, // Baboon Blast Shot
-	0x45, // Cannon Shot
-	0x52, // Bananaporter
-	0x53, // Monkeyport
-	0x54, // Bananaporter (Multiplayer)
-	0x56, // Locked
-	0x57, // Swinging on Vine
-	0x58, // Leaving Vine
-	0x59, // Climbing Tree
-	0x5A, // Leaving Tree
-	0x5B, // Grabbed Ledge
-	0x5C, // Pulling up on Ledge
-	0x63, // Rocketbarrel // Note: Covered by crystal D_global_asm_80754280 check except for Helm & K. Rool
-	0x64, // Taking Photo
-	0x65, // Taking Photo
-	0x67, // Instrument
-	0x69, // Car
-	0x6A, // Learning Gun // Note: Handled by map check
-	0x6B, // Locked
-	0x6C, // Feeding T&S // Note: Handled by map check
-	0x6D, // Boat
-	0x6E, // Baboon Balloon
-	0x6F, // Updraft
-	0x70, // GB Dance
-	0x71, // Key Dance
-	0x72, // Crown Dance
-	0x73, // Loss Dance
-	0x74, // Victory Dance
-	0x78, // Gorilla Grab
-	0x79, // Learning Move // Note: Handled by map check
-	0x7A, // Locked
-	0x7B, // Locked
-	0x7C, // Trapped (spider miniBoss)
-	0x7D, // Klaptrap Kong (beaver bother) // Note: Handled by map check
-	0x83, // Fairy Refill
-	0x87, // Entering Portal
-	0x88, // Exiting Portal
-};
-
-static const u16 speedrun_mode_permanent_flags[] = {
-	367, // Diddy FTT
-	368, // Lanky FTT
-	385, // Kong Unlocked: DK
-	6,	 // Kong Unlocked: Diddy
-	70,	 // Kong Unlocked: Lanky
-	66,	 // Kong Unlocked: Tiny
-	117, // Kong Unlocked: Chunky
-	369, // Tiny FTT
-	370, // Chunky FTT
-	42,	 // Japes: Cutscene by far W1 played // Diddy's help me cutscene
-	93,	 // Aztec: Lanky's help me cutscene
-	94,	 // Aztec: Tiny's help me cutscene
-	140, // Factory: Chunky's help me cutscene
-	// 375, // Cranky's Lab Simian Slam Tutorial
-	384, // Cranky's Lab Simian Slam Tutorial
-	27,	 // Japes: Cutscene at the start played
-	95,	 // Aztec: FT Cutscene
-	92,	 // Aztec: Llama Cutscene
-	194, // Galleon: First Time Cutscene
-	257, // Fungi: First Time Cutscene
-	282, // Caves: First Time Cutscene
-	299, // Caves: Giant Kosha Cutscene
-	349, // Castle: First Time Cutscene
-	355, // Bananaporter FTT
-	356, // Japes: Baboon Blast Cranky CS
-	358, // Crown Pad FTT
-	359, // T&S FTT (1)
-	360, // Mini Monkey FTT
-	361, // Hunky Chunky FTT
-	362, // Orangstand Sprint FTT
-	363, // Strong Kong FTT
-	364, // Rainbow Coin FTT
-	365, // Rambi FTT
-	366, // Enguarde FTT
-	372, // Snide's FTT
-	376, // Wrinkly FTT
-	377, // Camera/Shockwave
-	378, // Training Grounds: Treehouse Squawks Cutscene
-	382, // B. Locker FTT
-	383, // Training Grounds: Barrels Spawned
-	386, // Training Grounds: Dive Barrel Completed
-	387, // Training Grounds: Vine Barrel Completed
-	388, // Training Grounds: Orange Barrel Completed
-	389, // Training Grounds: Barrel Barrel Completed
-	390, // Isles: Escape Cutscene
-	391, // Training Grounds: All Training Barrels Complete CS
-};
-
-static const u16 speedrun_mode_temporary_flags[] = {
-	104, // Japes: Army Dillo Long Intro
-	103, // Aztec: Dogadon Long Intro
-	106, // Factory: Mad Jack Long Intro
-	107, // Galleon: Puftoss Long Intro
-	105, // Fungi: Dogadon Long Intro
-	109, // Caves: Army Dillo Long Intro
-	108, // Castle: Kut Out Long Intro
-	101, // Caves: Beetle FT Long Intro
-	102, // Aztec: Beetle FT Long Intro
+static const movement_bitfield banned_movement_btf = {
+	// Whether a tag is banned during a given control state. Each property is a boolean.
+	.null_state = 0,
+	.idle_enemy = 0,
+	.first_person_camera = 0,
+	.first_person_camera_water = 0,
+	.fairy_camera = 1,			 // Reason: HUD
+	.fairy_camera_water = 1,	 // Reason: HUD
+	.locked_bonus_barrel_0x6 = 1, // Reason: Locked Movement
+	.minecart_idle = 0,
+	.minecart_crouch = 0,
+	.minecart_jump = 0,
+	.minecart_left = 0,
+	.minecart_right = 0,
+	.idle = 0,
+	.walking = 0,
+	.skidding = 0,
+	.sliding_beetle_race = 1,
+	.sliding_beetle_race_left = 1,
+	.sliding_beetle_race_right = 1,
+	.sliding_beetle_race_forward = 1,
+	.sliding_beetle_race_back = 1,
+	.jumping_beetle_race = 1,
+	.slipping = 1,				 // Reason: Visual
+	.slipping_helm_slope = 1,	 // Reason: Visual
+	.jumping = 0,
+	.baboon_blast_pad = 1,		 // Reason: Visual
+	.bouncing_mushroom = 0,
+	.double_jump = 0,
+	.simian_spring = 1,			 // Reason: Visual
+	.simian_slam = 0,
+	.long_jumping = 0,
+	.falling = 0,
+	.falling_gun = 0,
+	.falling_or_splat = 1,		 // Reason: Cheese
+	.falling_beetle_race = 0,
+	.pony_tail_twirl = 0,
+	.attacking_enemy = 0,
+	.primate_punch = 0,
+	.attacking_enemy_0x25 = 0,
+	.ground_attack = 0,
+	.attacking_enemy_0x27 = 0,
+	.ground_attack_final = 0,
+	.moving_ground_attack = 0,
+	.aerial_attack = 0,
+	.rolling = 0,
+	.throwing_orange = 0,
+	.shockwave = 1,				 // Reason: Crash
+	.chimpy_charge = 1,			 // Reason: Visual
+	.charging_rambi = 0,
+	.bouncing = 0,
+	.damaged = 1,				 // Reason: Glitch
+	.stunlocked_kasplat = 1,	 // Reason: Crash
+	.damaged_mad_jack = 1,		 // Reason: Crash
+	.unknown_0x34 = 0,
+	.damaged_klump_knockback = 1, // Reason: Glitch
+	.death = 1,					 // Reason: Glitch
+	.damaged_underwater = 1,	 // Reason: Glitch
+	.damaged_vehicle = 1,		 // Reason: Glitch
+	.shrinking = 1,				 // Reason: Glitch
+	.unknown_0x3a = 0,
+	.death_dogadon = 0,
+	.crouching = 0,
+	.uncrouching = 0,
+	.backflip = 0,
+	.entering_orangstand = 0,
+	.orangstand = 0,
+	.jumping_orangstand = 0,
+	.barrel_tag_barrel = 1,		 // Reason: Locked Movement
+	.barrel_underwater = 1,		 // Reason: Locked Movement
+	.baboon_blast_shot = 1,		 // Reason: Locked Movement
+	.cannon_shot = 1,			 // Reason: Locked Movement
+	.pushing_object = 0,
+	.picking_up_object = 0,
+	.idle_carrying_object = 0,
+	.walking_carrying_object = 0,
+	.dropping_object = 0,
+	.throwing_object = 0,
+	.jumping_carrying_object = 0,
+	.throwing_object_air = 0,
+	.surface_swimming = 0,
+	.underwater = 0,
+	.leaving_water = 0,
+	.jumping_water = 0,
+	.bananaporter = 1,			 // Reason: Locked Movement
+	.monkeyport = 1,			 // Reason: Locked Movement
+	.bananaport_multiplayer = 1, // Reason: Glitch
+	.unknown_0x55 = 0,
+	.locked_funky_and_candy = 1, // Reason: Locked Movement
+	.swinging_on_vine = 1,		 // Reason: Crash
+	.leaving_vine = 1,			 // Reason: Crash
+	.climbing_tree = 1,			 // Reason: Crash
+	.leaving_tree = 1,			 // Reason: Crash
+	.grabbed_ledge = 1,			 // Reason: Crash
+	.pulling_up_on_ledge = 1,	 // Reason: Crash
+	.idle_gun = 0,
+	.walking_gun = 0,
+	.putting_away_gun = 0,
+	.pulling_out_gun = 0,
+	.jumping_gun = 0,
+	.aiming_gun = 0,
+	.rocketbarrel = 1,			 // Reason: Glitch
+	.taking_photo = 1,			 // Reason: Glitch
+	.taking_photo_underwater = 1, // Reason: Glitch
+	.damaged_tnt_barrels = 0,
+	.instrument = 1,			 // Reason: Glitch
+	.unknown_0x68 = 0,
+	.car_race = 1,				 // Reason: Locked Movement
+	.learning_gun = 1,			 // Reason: Locked Movement
+	.locked_bonus_barrel_0x6b = 1, // Reason: Locked Movement
+	.feeding_tns = 1,			 // Reason: Locked Movement
+	.boat = 1,					 // Reason: Locked Movement
+	.baboon_balloon = 1,		 // Reason: Visual
+	.updraft = 1,				 // Reason: Visual
+	.gb_dance = 1,				 // Reason: Locked Movement
+	.key_dance = 1,				 // Reason: Locked Movement
+	.crown_dance = 1,			 // Reason: Locked Movement
+	.loss_dance = 1,			 // Reason: Locked Movement
+	.victory_dance = 1,			 // Reason: Locked Movement
+	.vehicle_castle_car_race = 0,
+	.entering_battle_crown = 0,
+	.locked_cutscenes = 0,
+	.gorilla_grab = 1,			 // Reason: Locked Movement
+	.learning_move = 1,			 // Reason: Locked Movement
+	.locked_car_race_loss = 1,	 // Reason: Locked Movement
+	.locked_beetle_race_loss = 1, // Reason: Locked Movement
+	.trapped = 1,				 // Reason: Locked Movement
+	.klaptrap_kong = 1,			 // Reason: Glitch
+	.surface_swimming_enguarde = 0,
+	.underwater_enguarde = 0,
+	.attacking_enguarde_surface = 0,
+	.attacking_enguarde = 0,
+	.leaving_water_enguarde = 0,
+	.fairy_refill = 1,			 // Reason: Locked Movement
+	.unknown_0x84 = 0,
+	.main_menu = 0,
+	.entering_main_menu = 0,
+	.entering_portal = 1,		 // Reason: Locked Movement
+	.exiting_portal = 1,		 // Reason: Locked Movement
 };
 
 static const u16 kong_unlocked_flags[] = {
@@ -1093,407 +1606,378 @@ static const u16 kong_unlocked_flags[] = {
 	117, // Kong Unlocked: Chunky
 };
 
-static s32 inBadMapIndex = 0;
-static s32 inBadMapCache = 0;
-static u16 parentMapCache = 0;
-static s32 storySkipLoaded = 0;
+#define TAG_ANYWHERE_KONG_LIMIT 5 // Number of kongs in the tag loop
 
-s32 inBadMap(void)
-{
-	if (inBadMapIndex == current_map)
-	{
-		return inBadMapCache;
-	}
-	inBadMapCache = 0;
-	inBadMapIndex = current_map;
-	for (s32 i = 0; i < sizeof(bad_maps) / sizeof(bad_maps[0]); i++)
-	{
-		if (current_map == bad_maps[i])
-		{
-			inBadMapCache = 1;
-			break;
-		}
-	}
-	return inBadMapCache;
-}
+// Tag cooldown / HUD-freeze bookkeeping. Self-contained: driven entirely by
+// tagAnywhere() each frame.
+static unsigned char tag_countdown = 0;
+static char can_tag_anywhere = 0;
+static char can_tag_left = 0;
+static char can_tag_right = 0;
+static const unsigned char important_huds[] = {0, 1};
+static unsigned char important_huds_changed[] = {0, 0};
+static char grab_lock_timer = 0; // TODO: Figure this out
+static char tag_locked = 0;
 
-s32 inBadMovementState(void)
+s32 inTransform(void)
 {
+	// Is the player mid-transformation? (blocks tagging)
 	if (gPlayerPointer)
 	{
-		for (s32 i = 0; i < sizeof(bad_movement_states) / sizeof(bad_movement_states[0]); i++)
+		// 0x10 - Strong Kong, 0x20 - Orangstand Sprint
+		if (gPlayerPointer->strong_kong_ostand_bitfield & 0x30)
 		{
-			if (gPlayerPointer->control_state == bad_movement_states[i])
-			{
-				return 1;
-			}
+			return 1;
 		}
-		// Check for gorilla gone in effect bitfield
-		if (gPlayerPointer->strong_kong_ostand_bitfield & 0x40)
+		// Rocketbarrel
+		if (gPlayerPointer->control_state == 0x63)
 		{
 			return 1;
 		}
 	}
+	if (character_change_array)
+	{
+		// 0 = Mini Monkey, 2 = Hunky Chunky (1 = normal size)
+		return character_change_array->size != 1;
+	}
 	return 0;
 }
 
-void tagDenied()
+s32 canTagAnywhere(void)
 {
-	if (newly_pressed_input_copy.Buttons & R_JPAD || newly_pressed_input_copy.Buttons & L_TRIG)
+	// Note: only called from tagAnywhere() once gPlayerPointer is known non-null.
+	if (gPlayerPointer->strong_kong_ostand_bitfield & 0x100)
 	{
-		playSound(152, 0x2FFF, 63.0f, 1.0f, 0, 0);
+		// Seasick
+		return 0;
 	}
-	else if (newly_pressed_input_copy.Buttons & L_JPAD)
+	if (gPlayerPointer->collision_queue_pointer)
 	{
-		playSound(152, 0x2FFF, 63.0f, 1.0f, 0, 0);
+		return 0;
+	}
+	if (D_global_asm_807FD888 > 15.0f)
+	{
+		// LZ fadeout in progress - can cause inconsistent graphical crashes
+		return 0;
+	}
+	if (inTransform())
+	{
+		return 0;
+	}
+	if (is_cutscene_active)
+	{
+		return 0;
+	}
+	if (D_global_asm_807FD798 > 0) // ModelTwoTouchCount
+	{
+		return 0;
+	}
+	if (tag_locked)
+	{
+		return 0;
+	}
+	if (current_map == 42) // Troff 'n' Scoff
+	{
+		if (D_global_asm_8076A0B1 & 0x10) // MapState
+		{
+			return 0;
+		}
+		if (func_global_asm_805FF0C8()) // hasTurnedInEnoughCBs
+		{
+			if (gPlayerPointer->zPos < 560.0f)
+			{
+				// Too close to boss door
+				return 0;
+			}
+		}
+	}
+	for (s32 i = 0; i < D_global_asm_807FBB34[1]; i++) // LoadedActorCount @ 0x807FBB35
+	{
+		if (D_global_asm_807FB930[i].actor)
+		{
+			s32 tested_type = D_global_asm_807FB930[i].actor->actorType;
+			if (tested_type == 48) // Coconut
+			{
+				return 0;
+			}
+			else if (tested_type == 36) // Peanut
+			{
+				return 0;
+			}
+			else if (tested_type == 42) // Grape
+			{
+				return 0;
+			}
+			else if (tested_type == 43) // Feather
+			{
+				if (D_global_asm_807FB930[i].actor->control_state == 0)
+				{
+					return 0;
+				}
+			}
+			else if (tested_type == 38) // Pineapple
+			{
+				return 0;
+			}
+		}
+	}
+	// In tag barrel / paused
+	if (global_properties_bitfield & 2)
+	{
+		return 0;
+	}
+	if (tag_countdown != 0)
+	{
+		return 0;
+	}
+	s32 offset = current_map >> 3;
+	s32 check = current_map % 8;
+	if (*(unsigned char *)((unsigned char *)(&banned_map_btf) + offset) & (0x80 >> check))
+	{
+		return 0;
+	}
+	s32 control_state = gPlayerPointer->control_state;
+	offset = control_state >> 3;
+	check = control_state % 8;
+	if (*(unsigned char *)((unsigned char *)(&banned_movement_btf) + offset) & (0x80 >> check))
+	{
+		return 0;
+	}
+	return 1;
+}
+
+s32 getTagAnywhereKong(s32 direction)
+{
+	// Get the next unlocked kong in the tag loop in the given direction
+	s32 next_character = current_character_index + direction;
+	if (next_character < 0)
+	{
+		next_character = TAG_ANYWHERE_KONG_LIMIT - 1;
+	}
+	else if (next_character >= TAG_ANYWHERE_KONG_LIMIT)
+	{
+		next_character = 0;
+	}
+	s32 i = 0;
+	s32 reached_limit = 0;
+	while (i < TAG_ANYWHERE_KONG_LIMIT)
+	{
+		s32 pass = 0;
+		if (isFlagSet(kong_unlocked_flags[next_character], 0))
+		{
+			pass = 1;
+		}
+		if (pass)
+		{
+			break;
+		}
+		else
+		{
+			if ((i + 1) == TAG_ANYWHERE_KONG_LIMIT)
+			{
+				reached_limit = 1;
+				return current_character_index;
+			}
+			else
+			{
+				next_character = next_character + direction;
+				if (next_character < 0)
+				{
+					next_character = TAG_ANYWHERE_KONG_LIMIT - 1;
+				}
+				else if (next_character >= TAG_ANYWHERE_KONG_LIMIT)
+				{
+					next_character = 0;
+				}
+			}
+		}
+		i++;
+	}
+	if (reached_limit)
+	{
+		return current_character_index;
+	}
+	else
+	{
+		return next_character;
 	}
 }
 
 void tagAnywhere(void)
 {
-	s32 _dest_character;
-	s32 tagDirection;
-	s8 *Snide;
-
-	// Main Menu
-	if (current_map == 80)
-	{
-		// Remember Story Skip option through resets
-		if (!storySkipLoaded)
-		{
-			story_skip = isFlagSet(35, 1);
-			storySkipLoaded = 1;
-		}
-		else
-		{
-			setFlag(35, story_skip, 1);
-		}
-
-		if (story_skip)
-		{
-			// Start the player in DK Isles instead of Training Grounds
-			*(s8 *)(0x80714547) = 34;
-			*(s8 *)(0x8071455B) = 0;
-
-			// Make T&S feeding faster
-			*(u32 *)(0x806BE3E0) = 0;
-
-			// Enable K. Lumsy cutscene compression
-			*(u32 *)(0x806BDC98) = 0;
-
-			// Set temporary flags
-			for (s32 i = 0; i < sizeof(speedrun_mode_temporary_flags) / sizeof(speedrun_mode_temporary_flags[0]); i++)
-			{
-				setFlag(speedrun_mode_temporary_flags[i], 1, 2);
-			}
-			// Set permanent flags
-			for (s32 i = 0; i < sizeof(speedrun_mode_permanent_flags) / sizeof(speedrun_mode_permanent_flags[0]); i++)
-			{
-				setFlag(speedrun_mode_permanent_flags[i], 1, 0);
-			}
-
-			// Unlock moves
-			for (s32 i = 0; i < 5; i++)
-			{
-				D_global_asm_807FC950[i].special_moves = 3;
-				D_global_asm_807FC950[i].simian_slam = 3;
-				D_global_asm_807FC950[i].ammo_belt = 2;
-				D_global_asm_807FC950[i].weapon_bitfield = 7;
-				D_global_asm_807FC950[i].instrument_bitfield = 15;
-				D_global_asm_807FC950[i].instrument_energy = 20;
-			}
-
-			// Refill consumables
-			D_global_asm_807FCC40.Melons = 3;
-			D_global_asm_807FCC40.Health = 12;
-			D_global_asm_807FCC40.Oranges = 20;
-			D_global_asm_807FCC40.Film = 10;
-			D_global_asm_807FCC40.StandardAmmo = 200;
-			D_global_asm_807FCC40.Crystals = 20 * 150; // 150 ticks per crystal
-		}
-		else
-		{
-			// Start the player in Training Grounds
-			*(s8 *)(0x80714547) = 176;
-			*(s8 *)(0x8071455B) = 1;
-
-			// Don't make T&S feeding faster
-			*(u32 *)(0x806BE3E0) = 0x15600099;
-
-			// Disable K. Lumsy cutscene compression
-			*(u32 *)(0x806BDC98) = 0x14610012;
-		}
-	}
-
-	// Snide's HQ
-	if (current_map == 15)
-	{
-		if (story_skip)
-		{
-			// Snide's cutscene compression
-			// The cutscene the game chooses is based on the parent map (the method used to detect which Snide's H.Q. you're in)
-			// The shortest contraption cutscene is chosen with parent map 0
-			// So we swap out the original parent map with 0 at the right moment to get short cutscenes
-			// Then swap the original value back in at the right moment so that the player isn't taken back to test map when exiting Snide's H.Q.
-			if (D_global_asm_807476F4 == 5)
-			{
-				if (D_global_asm_807476F0 == 199)
-				{
-					// Make a backup copy of the current parent map to restore later
-					parentMapCache = D_global_asm_8076A172;
-				}
-				else if (D_global_asm_807476F0 == 200)
-				{
-					D_global_asm_8076A172 = 0;
-				}
-			}
-			else if (D_global_asm_807476F4 == 2)
-			{
-				// Restore the backup copy of the parent map
-				D_global_asm_8076A172 = parentMapCache;
-			}
-
-			// Snide turn in compression
-			Snide = findActorWithType(184);
-			if (Snide)
-			{
-				// Read the turn count (Snide + 0x232)
-				if (Snide[0x232] != 0)
-				{
-					Snide[0x232] = 1;
-				}
-			}
-		}
-	}
-
-	// Skip GB/Key dances
-	if (story_skip)
-	{
-		switch (current_map)
-		{
-		// Disable dance skips on the following maps
-		// If these are enabled, pause + exit is required to leave the map after collecting the GB
-		case 14:  // Aztec Beetle Race
-		case 27:  // Factory Car Race
-		case 39:  // Galleon Seal Race
-		case 82:  // Caves Beetle Race
-		case 185: // Castle Car Race
-			// Don't skip GB dances
-			*(u32 *)(0x806EFB9C) = 0xA1EE0154; // Enable Movement Write
-			*(u32 *)(0x806EFC1C) = 0x0C189E52; // Enable CS Play Function Call
-			*(u32 *)(0x806EFB88) = 0x0C18539E; // Enable Animation Write Function Call
-			*(u32 *)(0x806EFC0C) = 0xA58200E6; // Enable Change Rotation Write
-			*(u32 *)(0x806EFBA8) = 0xA3000155; // Enable Control State Progress Zeroing
-			break;
-		default:
-			// Skip GB dances
-			*(u32 *)(0x806EFB9C) = 0; // Cancel Movement Write
-			*(u32 *)(0x806EFC1C) = 0; // Cancel CS Play Function Call
-			*(u32 *)(0x806EFB88) = 0; // Cancel Animation Write Function Call
-			*(u32 *)(0x806EFC0C) = 0; // Cancel Change Rotation Write
-			*(u32 *)(0x806EFBA8) = 0; // Cancel Control State Progress Zeroing
-		}
-	}
-	else
-	{
-		// Don't skip GB dances
-		*(u32 *)(0x806EFB9C) = 0xA1EE0154; // Enable Movement Write
-		*(u32 *)(0x806EFC1C) = 0x0C189E52; // Enable CS Play Function Call
-		*(u32 *)(0x806EFB88) = 0x0C18539E; // Enable Animation Write Function Call
-		*(u32 *)(0x806EFC0C) = 0xA58200E6; // Enable Change Rotation Write
-		*(u32 *)(0x806EFBA8) = 0xA3000155; // Enable Control State Progress Zeroing
-	}
-
-	// Map is loading
-	if (D_global_asm_807FD888 > 0)
-	{
-		tagDenied();
-		return;
-	}
-	// In tag barrel / paused
-	if (global_properties_bitfield & 2)
-	{
-		tagDenied();
-		return;
-	}
-	if (is_autowalking)
-	{
-		tagDenied();
-		return;
-	}
-	if (is_cutscene_active)
-	{
-		tagDenied();
-		return;
-	}
-	if (inBadMap())
-	{
-		tagDenied();
-		return;
-	}
-	// Don't allow tagging when D_global_asm_80754280 is open
-	if (D_global_asm_80754280)
-	{
-		// Coloured Banana
-		if (D_global_asm_80754280[0].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-		// Banana Coin
-		if (D_global_asm_80754280[1].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-		// Crystal Coconut
-		if (D_global_asm_80754280[5].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-		// GB Count (current_character_index)
-		// Note: We can't add the bottom counter because it's always shown in lobbies
-		if (D_global_asm_80754280[8].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-		// Banana Medal
-		if (D_global_asm_80754280[10].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-		// Blueprint
-		if (D_global_asm_80754280[12].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-		// Coloured Banana?
-		if (D_global_asm_80754280[13].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-		// Banana Coin?
-		if (D_global_asm_80754280[14].hud_state)
-		{
-			tagDenied();
-			return;
-		}
-	}
-	if (inBadMovementState())
-	{
-		tagDenied();
-		return;
-	}
-	if (current_character_index > 4)
-	{
-		tagDenied();
-		return;
-	}
-
-	if (newly_pressed_input_copy.Buttons & R_JPAD || newly_pressed_input_copy.Buttons & L_TRIG)
-	{
-		tagDirection = 1;
-	}
-	else if (newly_pressed_input_copy.Buttons & L_JPAD)
-	{
-		tagDirection = -1;
-	}
-	else
-	{
-		return;
-	}
-
-	_dest_character = current_character_index + tagDirection;
-	while (7)
-	{
-		// Wrap from DK to Chunky
-		if (_dest_character < 0)
-		{
-			_dest_character = 4;
-		}
-		// Wrap from Chunky to DK
-		if (_dest_character > 4)
-		{
-			_dest_character = 0;
-		}
-		// Any kong can be tagged in speed mode
-		if (story_skip)
-		{
-			break;
-		}
-		// DK can always be tagged
-		if (_dest_character == 0)
-		{
-			break;
-		}
-		// Check whether kong has been unlocked before allowing tag to them
-		if (isFlagSet(kong_unlocked_flags[_dest_character], 0))
-		{
-			break;
-		}
-		_dest_character += tagDirection;
-	}
-
-	// Without this, a choppy animation occurs if you tag DK -> DK
-	if (_dest_character == current_character_index)
-	{
-		tagDenied();
-		return;
-	}
-
 	if (gPlayerPointer)
 	{
-		// If the destination kong hasn't bought their gun, or if the current kong does not have their gun out
-		if (((D_global_asm_807FC950[_dest_character].weapon_bitfield & 1) == 0) || (gPlayerPointer->was_gun_out == 0))
+		if (tag_countdown > 0)
 		{
-			gPlayerPointer->hand_state = 1;
-			gPlayerPointer->was_gun_out = 0;
-			// Without this, tags to and from Diddy mess up
-			if (_dest_character == 1)
+			tag_countdown -= 1;
+		}
+		if (current_map == 42) // Troff 'n' Scoff
+		{
+			if (tag_countdown == 2)
 			{
-				gPlayerPointer->hand_state = 0;
+				D_global_asm_80754280[0].hud_state = 1;
+				if (gPlayerPointer->control_state == 108)
+				{
+					s32 world = getLevelIndex(current_map, 0);
+					if (D_global_asm_807FC950[current_character_index].cb_count[world] > 0)
+					{
+						D_global_asm_80754280[0].hud_state = 0;
+					}
+				}
+			}
+			else if (tag_countdown == 1)
+			{
+				if (gPlayerPointer->control_state == 108)
+				{
+					s32 world = getLevelIndex(current_map, 0);
+					if (D_global_asm_807FC950[current_character_index].cb_count[world] > 0)
+					{
+						D_global_asm_80754280[0].hud_state = 1;
+					}
+				}
 			}
 		}
 		else
 		{
-			gPlayerPointer->hand_state = 2;
-			gPlayerPointer->was_gun_out = 1;
-			// Without this, tags to and from Diddy mess up
-			if (_dest_character == 1)
+			if (tag_countdown == 2)
 			{
-				gPlayerPointer->hand_state = 3;
+				for (s32 i = 0; i < sizeof(important_huds); i++)
+				{
+					if (important_huds_changed[i])
+					{
+						D_global_asm_80754280[important_huds[i]].hud_state = 0;
+					}
+				}
 			}
-		};
-		gPlayerPointer->new_kong = _dest_character + 2;
-		if (character_change_array)
-		{
-			character_change_array->action_type = 0x3B;
+			else if (tag_countdown == 1)
+			{
+				for (s32 i = 0; i < sizeof(important_huds); i++)
+				{
+					if (important_huds_changed[i])
+					{
+						D_global_asm_80754280[important_huds[i]].hud_state = 1;
+					}
+				}
+			}
 		}
-		// Play successful tag SFX
-		if (_dest_character == 0)
+		s32 can_ta = canTagAnywhere();
+		can_tag_anywhere = can_ta;
+		// Input buffering
+		if (current_character_index < TAG_ANYWHERE_KONG_LIMIT)
 		{
-			playSound(560, 0x4FFF, 63.0f, 1.0f, 0, 0);
-		}
-		else if (_dest_character == 1)
-		{
-			playSound(103, 0x4FFF, 63.0f, 1.0f, 0, 0);
-		}
-		else if (_dest_character == 2)
-		{
-			playSound(218, 0x4FFF, 63.0f, 1.0f, 0, 0);
-		}
-		else if (_dest_character == 3)
-		{
-			playSound(182, 0x4FFF, 63.0f, 1.0f, 0, 0);
-		}
-		else if (_dest_character == 4)
-		{
-			playSound(198, 0x4FFF, 63.0f, 1.0f, 0, 0);
+			s32 change = 0;
+
+			if (D_global_asm_807ECD58 & L_JPAD) // p1HeldButtons d_left
+			{
+				if (can_tag_left)
+				{
+					change -= 1;
+				}
+			}
+			else
+			{
+				can_tag_left = 1;
+			}
+
+			if (D_global_asm_807ECD58 & R_JPAD) // p1HeldButtons d_right
+			{
+				if (can_tag_right)
+				{
+					change += 1;
+				}
+			}
+			else
+			{
+				can_tag_right = 1;
+			}
+			if (!can_ta)
+			{
+				return;
+			}
+
+			if (change != 0)
+			{
+				can_tag_left = 0;
+				can_tag_right = 0;
+
+				s32 next_character = getTagAnywhereKong(change);
+				if (next_character != current_character_index)
+				{
+					// Fix hand state
+					if (((D_global_asm_807FC950[next_character].weapon_bitfield & 1) == 0) || (gPlayerPointer->was_gun_out == 0))
+					{
+						gPlayerPointer->hand_state = 1;
+						gPlayerPointer->was_gun_out = 0;
+						// Without this, tags to and from Diddy mess up
+						if (next_character == 1)
+						{
+							gPlayerPointer->hand_state = 0;
+						}
+					}
+					else
+					{
+						gPlayerPointer->hand_state = 2;
+						gPlayerPointer->was_gun_out = 1;
+						// Without this, tags to and from Diddy mess up
+						if (next_character == 1)
+						{
+							gPlayerPointer->hand_state = 3;
+						}
+					}
+					// Freeze the HUD so counters don't pop in for a few frames after a tag
+					if (current_map == 42)
+					{
+						if (!func_global_asm_805FF0C8()) // hasTurnedInEnoughCBs
+						{
+							tag_countdown = 3;
+							D_global_asm_80754280[0].freeze_timer = 1;
+							D_global_asm_80754280[0].counter_timer = 0;
+							D_global_asm_80754280[0].hud_state = 0;
+						}
+					}
+					else
+					{
+						for (s32 i = 0; i < sizeof(important_huds); i++)
+						{
+							important_huds_changed[i] = 0;
+							if (D_global_asm_80754280)
+							{
+								s32 hud_st = D_global_asm_80754280[important_huds[i]].hud_state;
+								if ((hud_st == 1) || (hud_st == 2))
+								{
+									tag_countdown = 3;
+									D_global_asm_80754280[important_huds[i]].freeze_timer = 0;
+									D_global_asm_80754280[important_huds[i]].counter_timer = 0;
+									D_global_asm_80754280[important_huds[i]].hud_state = 0;
+									important_huds_changed[i] = 1;
+								}
+							}
+						}
+					}
+					// Cancel Gorilla Gone
+					if (gPlayerPointer->strong_kong_ostand_bitfield & 0x40)
+					{
+						func_global_asm_80602B60(0x6C, 0); // cancelMusic
+						gPlayerPointer->obj_props_bitfield |= 0x8000;
+						func_global_asm_806F12FC(gPlayerPointer); // removeGorillaGone
+					}
+					// Perform the tag
+					s32 old_control_state = gPlayerPointer->control_state;
+					grab_lock_timer = 0; // inactive without the grab-lock hook
+					func_global_asm_806C8E58(next_character + 2); // tagKong
+					func_global_asm_806CFF9C(gPlayerPointer);	  // clearTagSlide
+					if (old_control_state == 0x4F)
+					{
+						// Fix the underwater tag memes
+						gPlayerPointer->yVelocity = 0.0f;
+						playAnimation(gPlayerPointer, 0x37);
+						func_global_asm_80614D90(gPlayerPointer); // handleAnimation
+						gPlayerPointer->control_state = old_control_state;
+						gPlayerPointer->control_state_progress = 4;
+					}
+					gPlayerPointer->new_kong = next_character + 2;
+				}
+			}
 		}
 	}
 }
