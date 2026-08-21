@@ -29,4 +29,4 @@ mod_filename = "dk64_tag_anywhere"
 func_reference_syms_file = "Dk64Syms/dump.toml"
 data_reference_syms_files = [ "Dk64Syms/data_dump.toml" ]
 # Additional files to include in the mod.
-additional_files = [ ]
+additional_files = ["thumb.dds"]
