@@ -17,7 +17,7 @@ authors = [ "IsoTarge", "Tom Ballaam", "Murdyll", "2dos", "Mittenz", "retroben",
 # ID of the target recomp game.
 game_id = "dk64"
 # Minimum version of the target recomp (e.g. Zelda 64: Recompiled) that this mod can run on.
-minimum_recomp_version = "0.1.0"
+minimum_recomp_version = "0.0.1"
 
 # Inputs to the mod tool.
 [inputs]
@@ -29,4 +29,4 @@ mod_filename = "dk64_tag_anywhere"
 func_reference_syms_file = "Dk64Syms/dump.toml"
 data_reference_syms_files = [ "Dk64Syms/data_dump.toml" ]
 # Additional files to include in the mod.
-additional_files = [ ]
+additional_files = ["thumb.dds"]
