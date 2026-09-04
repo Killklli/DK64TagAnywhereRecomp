@@ -2032,3 +2032,13 @@ RECOMP_CALLBACK("*", dk64recomp_every_frame) void tag_anywhere(void) {
 		cFuncLoop();
 	}
 }
+
+RECOMP_EXPORT char get_tag_locked(void)
+{
+return tag_locked;
+}
+
+RECOMP_EXPORT void set_tag_locked(char locked)
+{
+tag_locked = locked;
+}
