@@ -2023,22 +2023,6 @@ void cFuncLoop(void)
 	*(s8 *)(0x807563B4) = 1;
 	*(s32 *)(0x80731F78) = 0;
 
-	// Set Arcade High Scores
-	*(u32 *)(0x807467EC) = 999950;
-	*(u32 *)(0x807467F0) = 999950;
-	*(u32 *)(0x807467F4) = 999950;
-	*(u32 *)(0x807467F8) = 999950;
-	*(u32 *)(0x807467FC) = 999950;
-
-	// Unlock Mystery Menu
-	if (!isFlagSet(0, 1))
-	{
-		for (s32 i = 0; i < 35; i++)
-		{
-			setFlag(i, 1, 1);
-		}
-	}
-
 	tagAnywhere();
 }
 
