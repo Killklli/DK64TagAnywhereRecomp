@@ -1,0 +1,30 @@
+{
+    "authors" : [
+        "Isotarge",
+        "Ballaam",
+        "Murdyll",
+        "2dos",
+        "Mittenz",
+        "retroben",
+        "Kaze Emanuar",
+        "SubDrag",
+        "runehero123",
+        "Skill",
+        "TJ Blakely",
+        "GloriousLiar",
+        "Adam Whitmore",
+        "Znernicus",
+        "Zorulda",
+        "ChristianVega64",
+        "Rain",
+        "Shygoo",
+        "tj90241"
+    ],
+    "description" : "A modification for Donkey Kong 64 that enables switching character at any time, without backtracking.",
+    "display_name" : "Tag Anywhere",
+    "game_id" : "dk64",
+    "id" : "dk64_tag_anywhere",
+    "minimum_recomp_version" : "1.0.0",
+    "short_description" : "A modification for Donkey Kong 64 that enables switching character at any time, without backtracking.",
+    "version" : "1.0.1"
+}
