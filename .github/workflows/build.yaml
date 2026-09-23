@@ -37,11 +37,14 @@ jobs:
           ./RecompModTool mod.toml bin
           zip -j ./bin/dk64_tag_anywhere.zip ./bin/dk64_tag_anywhere.nrm
 
-      - name: Upload artifact
+      - name: Upload zip artifact
         uses: actions/upload-artifact@v4
         with:
           name: dk64_tag_anywhere.zip
           path: bin/dk64_tag_anywhere.zip
+
+      - name: Upload nrm artifact
+        uses: actions/upload-artifact@v4
         with:
           name: dk64_tag_anywhere.nrm
           path: bin/dk64_tag_anywhere.nrm
