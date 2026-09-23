@@ -1,6 +1,6 @@
 typedef struct map_bitfield {
     union {
-        u8 as_bytes[];
+        u8 as_bytes[0x1C];
         struct {
             unsigned char test_map : 1;
             unsigned char funkys_store : 1;
@@ -224,7 +224,7 @@ typedef struct map_bitfield {
 
 typedef struct movement_bitfield {
     union {
-        u8 as_bytes[];
+        u8 as_bytes[0x12];
         struct {
             unsigned char null_state : 1;
             unsigned char idle_enemy : 1;
