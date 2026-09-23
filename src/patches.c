@@ -332,16 +332,53 @@ RECOMP_PATCH void func_global_asm_806E5FA0(void) {
     }
 }
 
-RECOMP_HOOK("func_global_asm_806F54E0")
-void initCooldown(u8 playerIndex, s32 actorBehaviourIndex, u8 arg2) {
-    if (item_cooldown < 2) {
-        item_cooldown = 2;
-    }
-}
+typedef struct globalASMStruct36 GlobalASMStruct36;
+struct globalASMStruct36 {
+    s16 unk0;
+    s16 unk2;
+    s32 unk4;
+    s32 unk8;
+    s32 unkC;
+    u8 unk10;
+    u8 unk11;
+    u8 unk12;
+    u8 unk13;
+    f32 unk14;
+    u8 unk18;
+    u8 unk19;
+    u8 unk1A;
+    u8 unk1B;
+    GlobalASMStruct36 *next;
+};
 
-RECOMP_HOOK("func_global_asm_806F53EC")
-void initCooldown2(void *arg0) {
+typedef struct GlobalASMStruct37 {
+    s16 unk0;
+    s16 unk2;
+    s32 unk4;
+    s32 unk8;
+    s32 unkC;
+    s16 unk10;
+    u8 unk12;
+    u8 unk13;
+    f32 unk14;
+    u8 unk18;
+    u8 unk19;
+    u8 unk1A;
+    u8 unk1B;
+} GlobalASMStruct37;
+void *_malloc(s32);
+
+RECOMP_PATCH GlobalASMStruct36 *func_global_asm_806F53EC(GlobalASMStruct37 *arg0) {
+    GlobalASMStruct36 *temp_v0 = _malloc(sizeof(GlobalASMStruct36));
+    temp_v0->unk10 = 0;
+    temp_v0->unk14 = 0.0f;
+    temp_v0->unk0 = arg0->unk0;
+    temp_v0->unk18 = arg0->unk10;
+    temp_v0->unk2 = arg0->unk2;
+    temp_v0->unk19 = arg0->unk12;
+    temp_v0->unk1A = arg0->unk13;
     if (item_cooldown < 15) {
         item_cooldown = 15;
     }
+    return temp_v0;
 }

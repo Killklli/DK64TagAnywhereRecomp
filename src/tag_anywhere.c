@@ -148,7 +148,10 @@ u8 canTagAnywhere(void) {
 	// In tag barrel / paused
 	if (global_properties_bitfield & 2) return 0;
 	if (tag_countdown != 0) return 0;
-	if (item_cooldown != 0) return 0;
+	// recomp_printf("Item Cooldown: %d\n", item_cooldown);
+	if (item_cooldown != 0) {
+		return 0;
+	}
 	s32 offset = current_map >> 3;
 	s32 check = current_map % 8;
 	if (banned_map_btf.as_bytes[offset] & (0x80 >> check)) {
@@ -364,6 +367,7 @@ RECOMP_CALLBACK("*", dk64recomp_every_frame) void tag_anywhere(void) {
 					grab_lock_timer = -1;
 				}
 			}
+			action_tag_lock = FALSE;
 			if (item_cooldown > 0) {
 				item_cooldown--;
 			}
