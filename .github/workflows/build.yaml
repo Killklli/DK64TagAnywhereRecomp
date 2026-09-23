@@ -40,8 +40,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dk64_tag_anywhere
+          name: dk64_tag_anywhere.zip
           path: bin/dk64_tag_anywhere.zip
+        with:
+          name: dk64_tag_anywhere.nrm
+          path: bin/dk64_tag_anywhere.nrm
 
       - name: Upload to release
         if: github.event_name == 'release'
