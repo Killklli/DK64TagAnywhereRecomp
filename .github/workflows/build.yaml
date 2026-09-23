@@ -26,9 +26,13 @@ jobs:
       - name: Build ELF
         run: make
 
+      - name: Download RecompModTool
+        run: |
+          curl -L -o RecompModTool https://github.com/N64Recomp/N64Recomp/releases/download/mod-tool-release/RecompModTool
+          chmod +x RecompModTool
+
       - name: Package mod
         run: |
-          chmod +x RecompModTool
           mkdir -p bin
           ./RecompModTool mod.toml bin
           zip -j ./bin/dk64_tag_anywhere.zip ./bin/dk64_tag_anywhere.nrm

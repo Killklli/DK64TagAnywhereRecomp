@@ -334,5 +334,14 @@ RECOMP_PATCH void func_global_asm_806E5FA0(void) {
 
 RECOMP_HOOK("func_global_asm_806F54E0")
 void initCooldown(u8 playerIndex, s32 actorBehaviourIndex, u8 arg2) {
-    item_cooldown = 30;
+    if (item_cooldown < 2) {
+        item_cooldown = 2;
+    }
+}
+
+RECOMP_HOOK("func_global_asm_806F53EC")
+void *initCooldown2(void *arg0) {
+    if (item_cooldown < 15) {
+        item_cooldown = 15;
+    }
 }

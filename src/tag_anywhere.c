@@ -160,41 +160,6 @@ u8 canTagAnywhere(void) {
 	if (banned_movement_btf.as_bytes[offset] & (0x80 >> check)) {
 		return 0;
 	}
-	if (D_global_asm_80754280) {
-		// Coloured Banana
-		if (D_global_asm_80754280[0].hud_state) {
-			return 0;
-		}
-		// Banana Coin
-		if (D_global_asm_80754280[1].hud_state) {
-			return 0;
-		}
-		// Crystal Coconut
-		if (D_global_asm_80754280[5].hud_state) {
-			return 0;
-		}
-		// GB Count (Character)
-		// Note: We can't add the bottom counter because it's always shown in lobbies
-		if (D_global_asm_80754280[8].hud_state) {
-			return 0;
-		}
-		// Banana Medal
-		if (D_global_asm_80754280[10].hud_state) {
-			return 0;
-		}
-		// Blueprint
-		if (D_global_asm_80754280[12].hud_state) {
-			return 0;
-		}
-		// Coloured Banana?
-		if (D_global_asm_80754280[13].hud_state) {
-			return 0;
-		}
-		// Banana Coin?
-		if (D_global_asm_80754280[14].hud_state) {
-			return 0;
-		}
-	}
 	return 1;
 }
 
