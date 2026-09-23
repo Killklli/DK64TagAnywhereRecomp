@@ -340,7 +340,7 @@ void initCooldown(u8 playerIndex, s32 actorBehaviourIndex, u8 arg2) {
 }
 
 RECOMP_HOOK("func_global_asm_806F53EC")
-void *initCooldown2(void *arg0) {
+void initCooldown2(void *arg0) {
     if (item_cooldown < 15) {
         item_cooldown = 15;
     }
