@@ -1,6 +1,6 @@
 [manifest]
 id = "dk64_tag_anywhere"
-version = "1.0.2"
+version = "1.0.3"
 display_name = "Tag Anywhere"
 description =  "A modification for Donkey Kong 64 that enables switching character at any time, without backtracking."
 short_description = "A modification for Donkey Kong 64 that enables switching character at any time, without backtracking."

@@ -4,6 +4,8 @@
 #include "common_structs.h"
 #include "tag_anywhere.h"
 
+RECOMP_DECLARE_EVENT(recomp_on_tag_anywhere_tag(u8 old_kong, u8 new_kong));
+
 typedef struct {
     Actor* unk0;
     s32 unk4;
@@ -106,7 +108,7 @@ u8 inTransform(void) {
 }
 
 extern void *D_global_asm_807FD730;
-u8 canTagAnywhere(void) {
+RECOMP_EXPORT u8 canTagAnywhere(void) {
 	s32 i;
 
 	// Note: only called from tagAnywhere() once gPlayerPointer is known non-null.
@@ -350,6 +352,7 @@ void tagAnywhere(void) {
 			if (next_character != current_character_index) {
 				// Fix hand state
 				changeKong(next_character);
+				recomp_on_tag_anywhere_tag(current_character_index, next_character);
 			}
 		}
 	}
