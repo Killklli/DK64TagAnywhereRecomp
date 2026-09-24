@@ -77,7 +77,6 @@ static const u16 kong_unlocked_flags[] = {
 // Tag cooldown / HUD-freeze bookkeeping. Self-contained: driven entirely by
 // tagAnywhere() each frame.
 u8 tag_countdown = 0;
-u8 item_cooldown = 0;
 u8 can_tag_anywhere = FALSE;
 u8 can_tag_left = FALSE;
 u8 can_tag_right = FALSE;
@@ -106,6 +105,7 @@ u8 inTransform(void) {
 	return FALSE;
 }
 
+extern void *D_global_asm_807FD730;
 u8 canTagAnywhere(void) {
 	s32 i;
 
@@ -148,8 +148,7 @@ u8 canTagAnywhere(void) {
 	// In tag barrel / paused
 	if (global_properties_bitfield & 2) return 0;
 	if (tag_countdown != 0) return 0;
-	// recomp_printf("Item Cooldown: %d\n", item_cooldown);
-	if (item_cooldown != 0) {
+	if (D_global_asm_807FD730) {
 		return 0;
 	}
 	s32 offset = current_map >> 3;
@@ -368,9 +367,6 @@ RECOMP_CALLBACK("*", dk64recomp_every_frame) void tag_anywhere(void) {
 				}
 			}
 			action_tag_lock = FALSE;
-			if (item_cooldown > 0) {
-				item_cooldown--;
-			}
 		}
 	}
 }
