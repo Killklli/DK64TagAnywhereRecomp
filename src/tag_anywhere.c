@@ -375,6 +375,35 @@ RECOMP_CALLBACK("*", dk64recomp_every_frame) void tag_anywhere(void) {
 	}
 }
 
+typedef struct {
+    u16 unk0;
+    s8 unk2;
+    u8 unk3;
+    s32 unk4;
+    s32 unk8;
+    s16 unkC;
+    s16 unkE;
+    s16 unk10;
+    s16 unk12;
+} Struct80753EFC;
+
+extern Struct80753EFC D_global_asm_80753EF0[];
+
+RECOMP_CALLBACK("*", recomp_on_init) void removeChunkyBunch(void) {
+	s32 i;
+	
+	for (i = 0; i < 42; i++) {
+		switch (D_global_asm_80753EF0[i].unk0) {
+			case 0x2B:
+			case 0x208:
+			case 0x205:
+			case 0x207:
+				D_global_asm_80753EF0[i].unkE = 0;
+				break;
+		}	
+	}
+}
+
 RECOMP_EXPORT char get_tag_locked(void) {
 	return tag_locked;
 }

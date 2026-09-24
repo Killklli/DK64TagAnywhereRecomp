@@ -382,3 +382,36 @@ RECOMP_PATCH GlobalASMStruct36 *func_global_asm_806F53EC(GlobalASMStruct37 *arg0
     }
     return temp_v0;
 }
+
+typedef struct {
+    s32 id;
+    u8 images_per_frame_horizontal;
+    u8 images_per_frame_vertical;
+    u8 unk6;
+    u8 codec;
+    u8 unk8;
+    u8 unk9;
+    u8 unkA;
+    u8 unkB;
+    u8 unkC;
+    u8 table;
+    s16 width;
+    s16 height;
+    s16 image_count;
+    s16 images[1]; // TODO: How many elements? m2c doesn't support VLAs
+} SpriteData;
+
+#define ACTOR_UNINITIALIZED(actor) (!(actor->object_properties_bitfield & 0x10))
+void func_global_asm_806A664C(f32 arg0);
+void func_global_asm_806A5EAC(void *arg0, void *sprite, f32 scale);
+extern SpriteData D_global_asm_80720EBC;
+
+RECOMP_PATCH void func_global_asm_806A6574(void) {
+    void *aaD;
+
+    aaD = gCurrentActorPointer->additional_actor_data;
+    func_global_asm_806A664C(4.5f);
+    if (ACTOR_UNINITIALIZED(gCurrentActorPointer)) {
+        func_global_asm_806A5EAC(aaD, &D_global_asm_80720EBC, 1.0f);
+    }
+}
